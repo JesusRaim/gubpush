@@ -1,5 +1,8 @@
 package com.dedalow.utils;
 
+import com.dedalow.SharedDependencies;
+import com.dedalow.report.Report;
+
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -7,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxOptions;
@@ -23,9 +27,7 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
 
 public class DriverInit {
-    public Logger logger = Utils.logger();
     public String driverType;
-    public WebDriver driver = null;
     public String driverPath;
     public String[] driverOptions;
     public String pathFolderDownloads;
@@ -38,68 +40,62 @@ public class DriverInit {
     
 	/**
 	 * The corresponding function is called depending on the selected browser
-	 * @param folderDownloads
-	 * @param prop
 	 * @param nameDriver
-	 * @param contextsDriver
 	 * @return
 	 * @throws Exception
 	 */
-    public WebDriver driverSelector(File folderDownloads, Properties prop, String nameDriver,
-            Map<String, WebDriver> contextsDriver) throws Exception {
-        if (contextsDriver.get(nameDriver) != null) {
-            driver = contextsDriver.get(nameDriver);
+    public WebDriver driverSelector(String nameDriver) throws Exception {
+        WebDriver driver;
+        if (SharedDependencies.contextsDriver.get(nameDriver) != null) {
+            driver = SharedDependencies.contextsDriver.get(nameDriver);
         } else {
-            driverType = prop.getProperty("WebDriver.BROWSER").toLowerCase().replace(" ", "");
-            driverOptions = prop.getProperty("WebDriver.DRIVER_OPTIONS").split(", ");
-            pathFolderDownloads = prop.getProperty("FOLDER_DOWNLOAD");
-            timeOut = Integer.parseInt(prop.getProperty("WEB_TIMEOUT"));
+            driverType = SharedDependencies.prop.getProperty("WebDriver.BROWSER").toLowerCase().replace(" ", "");
+            driverOptions = SharedDependencies.prop.getProperty("WebDriver.DRIVER_OPTIONS").split(", ");
+            pathFolderDownloads = SharedDependencies.prop.getProperty("FOLDER_DOWNLOAD");
 
             if (!pathFolderDownloads.isEmpty() && !pathFolderDownloads.equals("default")) {
-                folderDownloads = new File(pathFolderDownloads);
+                SharedDependencies.folderDownloads = new File(pathFolderDownloads);
             }
 
             if (listNamesChrome.contains(driverType)) {
-                driver = initChromedriver(prop, folderDownloads);
+                driver = initChromedriver();
             } else if (listNamesFirefox.contains(driverType)) {
-                driver = initGeckodriver(prop, folderDownloads);
+                driver = initGeckodriver();
             } else if (listNamesExplorer.contains(driverType)) {
-                driver = initIEDriverServer(prop, folderDownloads);
+                driver = initIEDriverServer();
             } else if (listNameseEdge.contains(driverType)) {
-                driver = initEdgedriver(prop, folderDownloads);
+                driver = initEdgedriver();
             } else {
-                logger.info(
+                SharedDependencies.logger.info(
                         "The indicated browser does not match the available browsers [Chrome, Firefox, IExplorer, Edge], it is launched by default on chrome");
-                driver = initChromedriver(prop, folderDownloads);
+                driver = initChromedriver();
             }
 
-            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(timeOut));
-            contextsDriver.put(nameDriver, driver);
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(SharedDependencies.timeout));
+            SharedDependencies.contextsDriver.put(nameDriver, driver);
         }
         return driver;
     }
 
 	/**
      * Configure and start the Chrome browser
-     * @param prop
-     * @param folderDownloads
      * @return
      * @throws Exception
      */
-    public WebDriver initChromedriver(Properties prop, File folderDownloads) throws Exception {
+    public WebDriver initChromedriver() throws Exception {
         try {
 			HashMap<String, Object> chromePrefs = new HashMap<String, Object>();
 			chromePrefs.put("profile.default_content_settings.popups", 0);
-			chromePrefs.put("download.default_directory", folderDownloads.getAbsolutePath());
+			chromePrefs.put("download.default_directory", SharedDependencies.folderDownloads.getAbsolutePath());
 			ChromeOptions optionsChrome = new ChromeOptions();
-			if (!prop.getProperty("WebDriver.DRIVER_OPTIONS").isEmpty()) {
+			if (!SharedDependencies.prop.getProperty("WebDriver.DRIVER_OPTIONS").isEmpty()) {
 				optionsChrome.addArguments(driverOptions);
 			}
 			optionsChrome.setExperimentalOption("prefs", chromePrefs);
-			if (prop.getProperty("WebDriver.BROWSER").toLowerCase().contains("remote")) {
-				return getRemoteWebDriver(optionsChrome, prop);
+			if (SharedDependencies.prop.getProperty("WebDriver.BROWSER").toLowerCase().contains("remote")) {
+				return getRemoteWebDriver(optionsChrome);
 			} else {
-				WebDriverManager.chromedriver().driverVersion(prop.getProperty("WebDriver.DRIVER_VERSION")).setup();
+				WebDriverManager.chromedriver().driverVersion(SharedDependencies.prop.getProperty("WebDriver.DRIVER_VERSION")).setup();
 				return new ChromeDriver(optionsChrome);
 			}
 		} catch (IllegalStateException e) {
@@ -109,16 +105,14 @@ public class DriverInit {
 
 	/**
      * Configure and start the Fixefox browser
-     * @param prop
-     * @param folderDownloads
      * @return
      * @throws Exception
      */
-    public WebDriver initGeckodriver(Properties prop, File folderDownloads) throws Exception {
+    public WebDriver initGeckodriver() throws Exception {
         try {
 			FirefoxProfile profile = new FirefoxProfile();
 			profile.setPreference("browser.download.manager.useWindow", false);
-			profile.setPreference("browser.download.dir", folderDownloads.getAbsolutePath());
+			profile.setPreference("browser.download.dir", SharedDependencies.folderDownloads.getAbsolutePath());
 			profile.setPreference("browser.download.manager.showAlertOnComplete", true);
 			profile.setPreference("browser.helperApps.neverAsk.saveToDisk",
 					"text/plain, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream,"
@@ -126,14 +120,14 @@ public class DriverInit {
 							+ "text/comma-separated-values, text/xml, application/xml");
 			profile.setPreference("browser.download.folderList", 2);
 			FirefoxOptions optionsFirefox = new FirefoxOptions();
-			if (!prop.getProperty("WebDriver.DRIVER_OPTIONS").isEmpty()) {
+			if (!SharedDependencies.prop.getProperty("WebDriver.DRIVER_OPTIONS").isEmpty()) {
 				optionsFirefox.addArguments(driverOptions);
 			}
 			optionsFirefox.setProfile(profile);
-			if (prop.getProperty("WebDriver.BROWSER").toLowerCase().contains("remote")) {
-				return getRemoteWebDriver(optionsFirefox, prop);
+			if (SharedDependencies.prop.getProperty("WebDriver.BROWSER").toLowerCase().contains("remote")) {
+				return getRemoteWebDriver(optionsFirefox);
 			} else {
-				WebDriverManager.firefoxdriver().driverVersion(prop.getProperty("WebDriver.DRIVER_VERSION")).setup();
+				WebDriverManager.firefoxdriver().driverVersion(SharedDependencies.prop.getProperty("WebDriver.DRIVER_VERSION")).setup();
 				return new FirefoxDriver(optionsFirefox);
 			}
 		} catch (IllegalStateException e) {
@@ -143,14 +137,12 @@ public class DriverInit {
 
 	/**
      * Configure and start the Explorer browser
-     * @param prop
-     * @param folderDownloads
      * @return
      * @throws Exception
      */
-    public WebDriver initIEDriverServer(Properties prop, File folderDownloads) throws Exception {
+    public WebDriver initIEDriverServer() throws Exception {
         try {
-			WebDriverManager.iedriver().driverVersion(prop.getProperty("WebDriver.DRIVER_VERSION")).arch32().setup();
+			WebDriverManager.iedriver().driverVersion(SharedDependencies.prop.getProperty("WebDriver.DRIVER_VERSION")).arch32().setup();
 			WebDriver ieDriver = new InternetExplorerDriver();
 			return ieDriver;
 		} catch (IllegalStateException e) {
@@ -160,25 +152,23 @@ public class DriverInit {
 
 	/**
      * Configure and start the Edge browser
-     * @param prop
-     * @param folderDownloads
      * @return
      * @throws Exception
      */
-    public WebDriver initEdgedriver(Properties prop, File folderDownloads) throws Exception {
+    public WebDriver initEdgedriver() throws Exception {
         try {
 			HashMap<String, Object> edgePrefs = new HashMap<String, Object>();
 			edgePrefs.put("profile.default_content_settings.popups", 0);
-			edgePrefs.put("download.default_directory", folderDownloads.getAbsolutePath());
+			edgePrefs.put("download.default_directory", SharedDependencies.folderDownloads.getAbsolutePath());
 			EdgeOptions optionsEdge = new EdgeOptions();
-			if (!prop.getProperty("WebDriver.DRIVER_OPTIONS").isEmpty()) {
+			if (!SharedDependencies.prop.getProperty("WebDriver.DRIVER_OPTIONS").isEmpty()) {
 				optionsEdge.addArguments(driverOptions);
 			}
 			optionsEdge.setExperimentalOption("prefs", edgePrefs);
-			if (prop.getProperty("WebDriver.BROWSER").toLowerCase().contains("remote")) {
-				return getRemoteWebDriver(optionsEdge, prop);
+			if (SharedDependencies.prop.getProperty("WebDriver.BROWSER").toLowerCase().contains("remote")) {
+				return getRemoteWebDriver(optionsEdge);
 			} else {
-				WebDriverManager.edgedriver().driverVersion(prop.getProperty("WebDriver.DRIVER_VERSION")).setup();
+				WebDriverManager.edgedriver().driverVersion(SharedDependencies.prop.getProperty("WebDriver.DRIVER_VERSION")).setup();
 				return new EdgeDriver(optionsEdge);
 			}
 		} catch (IllegalStateException e) {
@@ -190,15 +180,14 @@ public class DriverInit {
      * Configures and returns a RemoteWebDriver.
      * @param <T> type that inherits from AbstractDriverOptions.
      * @param options an object that inherits from AbstractDriverOptions. Examples: ChromeOptions, EdgeOptions or FirefoxOptions.
-     * @param prop a Properties object used to configure a RemoteWebDriver.
      * @return a configured RemoteWebDriver object.
      * @throws Exception
      */
-	private <T extends AbstractDriverOptions<T>> RemoteWebDriver getRemoteWebDriver(T options, Properties prop) throws Exception{
+	private <T extends AbstractDriverOptions<T>> RemoteWebDriver getRemoteWebDriver(T options) throws Exception{
     	StringBuilder errorMessages = new StringBuilder();
-    	String remoteUrl = prop.getProperty("WebDriver.REMOTE_URL");
-    	String remotePlatform = prop.getProperty("WebDriver.REMOTE_PLATFORM");
-    	String browserVersion = prop.getProperty("WebDriver.BROWSER_VERSION");
+    	String remoteUrl = SharedDependencies.prop.getProperty("WebDriver.REMOTE_URL");
+    	String remotePlatform = SharedDependencies.prop.getProperty("WebDriver.REMOTE_PLATFORM");
+    	String browserVersion = SharedDependencies.prop.getProperty("WebDriver.BROWSER_VERSION");
 
     	if (remoteUrl == null)
     		errorMessages.append("The REMOTE_URL is not in the config.properties file.\n");
@@ -214,10 +203,24 @@ public class DriverInit {
 
     	if (errorMessages.length() > 0) throw new Exception(errorMessages.toString());
 
-    	options.setPlatformName(prop.getProperty("WebDriver.REMOTE_PLATFORM"));
-		options.setBrowserVersion(prop.getProperty("WebDriver.BROWSER_VERSION"));
+    	options.setPlatformName(SharedDependencies.prop.getProperty("WebDriver.REMOTE_PLATFORM"));
+		options.setBrowserVersion(SharedDependencies.prop.getProperty("WebDriver.BROWSER_VERSION"));
 
 		return new RemoteWebDriver(new URL(remoteUrl), options);
+    }
+
+    public static void clearWebDrivers() {
+      try {
+          for (Map.Entry<String, WebDriver> context : SharedDependencies.contextsDriver.entrySet()) {
+              if (!context.getValue().toString().contains("Firefox")) {
+                  context.getValue().close();
+              }
+              context.getValue().quit();
+          }
+          SharedDependencies.contextsDriver.clear();
+      } catch (Exception e) {
+          Report.reportConsoleLogs(e.getMessage(), Level.SEVERE);
+      }
     }
 
 }
