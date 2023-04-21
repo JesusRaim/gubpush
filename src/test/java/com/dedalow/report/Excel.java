@@ -1,7 +1,7 @@
 package com.dedalow.report;
 
-import com.dedalow.SharedDependencies;
-
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;	
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.logging.Logger;
@@ -17,11 +17,14 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import com.dedalow.utils.*;
 
 public class Excel {
-
-    public static HSSFWorkbook createExcel(File route, String[] columnsExcel) {
+	
+	private static FileSystem fileSystem = FileSystems.getDefault();
+	private static Logger logger = Utils.logger();
+	
+    public static HSSFWorkbook createExcel(File route, String suiteName, String[] columnsExcel) {
         HSSFWorkbook wk = null;
         try {
-            File file = new File(route + SharedDependencies.fileSystem.getSeparator() + "ReportResult.xls");
+            File file = new File(route + fileSystem.getSeparator() + "ReportResult.xls");
             if (file.exists()) {
                 FileInputStream fis = new FileInputStream(file);
                 wk = (HSSFWorkbook) WorkbookFactory.create(fis);
@@ -30,11 +33,11 @@ public class Excel {
                 }
             } else {
                 wk = new HSSFWorkbook();
-                HSSFSheet sheet = wk.createSheet(SharedDependencies.suiteName);
+                HSSFSheet sheet = wk.createSheet(suiteName);
                 createHeaderExcel(wk, sheet, columnsExcel);
             }
         } catch (Exception e) {
-            SharedDependencies.logger.severe(e.getMessage());
+            logger.severe(e.getMessage());
         }
         return wk;
     }
