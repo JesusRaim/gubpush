@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extentreports>
+	<configuration>
+		<documentTitle>Dedalow Html Report</documentTitle>
+		<encoding>UTF-8</encoding>
+		<theme>standard</theme>
+        <reportName>
+            <![CDATA[
+                <img src='../../resources/extentReports/logo.png' style='position: absolute;left: 220px;width: auto;'/>
+                <message> Html Report </message>
+            ]]>
+        </reportName>
+        <scripts>
+            <![CDATA[
+				window.onload = function() {
+				var link = document.createElement('link');
+				link.setAttribute('rel', 'stylesheet');
+				link.setAttribute('type', 'text/css');
+				link.setAttribute('href', '../../resources/extentReports/extent.css');
+                document.head.appendChild(link);
+
+				var jqueryfile = document.createElement('script');
+				jqueryfile.setAttribute('src', '../../resources/extentReports/jquery.js');
+				jqueryfile.setAttribute('type', 'text/javascript');
+                document.body.appendChild(jqueryfile);
+
+				var icons = document.createElement('link');
+				icons.setAttribute('rel', 'stylesheet');
+				icons.setAttribute('type', 'text/css');
+				icons.setAttribute('href', '../../resources/extentReports/materialicons.css');
+                document.head.appendChild(icons);
+
+				var styles = document.createElement('link');
+				styles.setAttribute('rel', 'stylesheet');
+				styles.setAttribute('type', 'text/css');
+				styles.setAttribute('href', '../../resources/extentReports/styles.css');
+                document.head.appendChild(styles);
+            };
+            ]]>
+        </scripts>
+	</configuration>
+</extentreports>
