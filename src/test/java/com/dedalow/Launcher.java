@@ -9,15 +9,17 @@ import org.junit.platform.launcher.LauncherDiscoveryRequest;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
 
+import com.dedalow.utils.Constant;
 import com.dedalow.utils.Utils;
 import com.dedalow.report.Report;
 
 public class Launcher {
 
+	public static Constant constant = new Constant();
+
 	public static void main(String[] args) {
 
 		try {
-            SharedDependencies.init();
 			ArrayList<String> testCases = Utils.getTestCasesSelected();
 
 			LauncherDiscoveryRequest discoveryRequest = LauncherDiscoveryRequestBuilder.request()

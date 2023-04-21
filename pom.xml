@@ -11,10 +11,10 @@
     <version>0.0.1-SNAPSHOT</version>
 
 	<developers>
-    <developer>
-  <name>jperepei</name>
-  <roles></roles>
-  </developer>
+		<developer>
+			<name>jperepei</name>
+			<roles></roles>
+		</developer>
 	</developers>
 
 	<properties>

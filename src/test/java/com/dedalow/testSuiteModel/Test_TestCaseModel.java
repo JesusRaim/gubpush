@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.List;
 import java.util.logging.Level;
@@ -31,7 +32,6 @@ import com.dedalow.utils.*;
 import com.dedalow.report.ExtentHtml;
 import com.dedalow.report.Report;
 import com.dedalow.Launcher;
-import com.dedalow.SharedDependencies;
 
 import com.aventstack.extentreports.Status;
 
@@ -39,18 +39,37 @@ import com.aventstack.extentreports.Status;
 
 public class Test_TestCaseModel {
 
+    private static Class reflectiveClass;
+    private static Launcher launcher = new Launcher();
+    public static DriverInit driverInit = new DriverInit();
+    public static Constant constant = launcher.constant;
+    public static String suiteName = "TestSuiteModel";
+    public static String caseName = Test_TestCaseModel.class.getSimpleName();
+    public static String modelDocumentation = "";
+    public static WebDriver driver;
+
+    public static Properties prop;
+    public static String level;
+    public static String handler;
+    public static String finalResult = "OK";
+    public static File folderTestCase;
+    public static File folderDownloads;
+
+    
     
 
     @BeforeEach
     public void beforeEach() throws Exception {
     try {
+        constant.defaultValues();
+        prop = Utils.getConfigProperties();
         setUp();
-		SharedDependencies.setUpEnvironment("MAIN_CONTEXT");
+        driver = setUpEnvironment(folderDownloads, prop, "MAIN_CONTEXT", constant.contextsDriver);
         
     } catch (AssertionError | Exception e) {
         Report.reportConsoleLogs(e.getMessage(), Level.SEVERE);
-        SharedDependencies.finalResult = "BQ";
-        Report.reportLog(e.getMessage(), SharedDependencies.level, 0, Status.FAIL, true, "isCatch", "", Throwables.getStackTraceAsString(e));
+        finalResult = "BQ";
+        Report.reportLog(reflectiveClass, e.getMessage(), level, 0, Status.FAIL, true, "isCatch", "", Throwables.getStackTraceAsString(e));
         throw new Exception(e);
         }
     }
@@ -64,17 +83,17 @@ public class Test_TestCaseModel {
             
             
             
-            Report.reportLog("Start of execution", "INFO", 0, Status.PASS, false, "", "", null);
+            Report.reportLog(reflectiveClass, "Start of execution", "INFO", 0, Status.PASS, false, "", "", null);
             
-            SharedDependencies.driver.get(SharedDependencies.prop.getProperty("WEB_URL") + "");
-            Report.reportLog("Navigated to " + SharedDependencies.prop.getProperty("WEB_URL") + "", "INFO", 0, Status.PASS, true, "", "", null);
+            driver.get(prop.getProperty("WEB_URL") + "");
+            Report.reportLog(reflectiveClass, "Navigated to " + prop.getProperty("WEB_URL") + "", "INFO", 0, Status.PASS, true, "", "", null);
 			
         } catch (AssertionError | Exception e) {
             Report.reportConsoleLogs(e.getMessage(), Level.SEVERE);
-            if (SharedDependencies.finalResult != "BQ") {
-				SharedDependencies.finalResult = "KO";
+            if (finalResult != "BQ") {
+				finalResult = "KO";
 			}
-            Report.reportLog(e.getMessage(), SharedDependencies.level, 0, Status.FAIL, true, "isCatch", "", Throwables.getStackTraceAsString(e));
+            Report.reportLog(reflectiveClass, e.getMessage(), level, 0, Status.FAIL, true, "isCatch", "", Throwables.getStackTraceAsString(e));
             throw new Exception(e);
         }
     }
@@ -85,18 +104,15 @@ public class Test_TestCaseModel {
     public void afterEach()  {
         boolean screenShot = true;
         
-        if (SharedDependencies.finalResult == "OK") {
-            Report.reportLog("Result on Test_TestCaseModel: " + SharedDependencies.finalResult, "INFO", 0, Status.PASS, false, "", "", null);
+        if (finalResult == "OK") {
+            Report.reportLog(reflectiveClass, "Result on Test_TestCaseModel: " + finalResult, "INFO", 0, Status.PASS, false, "", "", null);
         } else {
-            Report.reportLog("Result on Test_TestCaseModel: " + SharedDependencies.finalResult, "INFO", 0, Status.FAIL, false, "", "", null);
+            Report.reportLog(reflectiveClass, "Result on Test_TestCaseModel: " + finalResult, "INFO", 0, Status.FAIL, false, "", "", null);
         }
-        SharedDependencies.logger.info("Result on Test_TestCaseModel: " + SharedDependencies.finalResult);
-        SharedDependencies.initialize.flush();
-        DriverInit.clearWebDrivers();
-        SharedDependencies.results.add(SharedDependencies.finalResult);
-        Report.addResults();
-        Report.finalReports(screenShot);
-        SharedDependencies.initialize.flush();
+        constant.logger.info("Result on Test_TestCaseModel: " + finalResult);
+        Utils.tearDown(reflectiveClass);
+        Utils.finalReports(reflectiveClass, screenShot);
+        constant.initialize.flush();
     }
 
     /**
@@ -106,17 +122,28 @@ public class Test_TestCaseModel {
     
     public static void setUp() throws Exception {
         try {
-            SharedDependencies.init();
-            SharedDependencies.screenshot = SharedDependencies.utils.configScreenshot();
-        SharedDependencies.timeout = Integer.parseInt(SharedDependencies.prop.getProperty("WEB_TIMEOUT"));
-        SharedDependencies.utils.checkConnection(SharedDependencies.prop);
-            SharedDependencies.defaultValues("TestSuiteModel", "Test_TestCaseModel");
-            SharedDependencies.initialize = new ExtentHtml("Test_TestCaseModel");
-            SharedDependencies.test = SharedDependencies.initialize.getTest();
+            constant.initialize = new ExtentHtml(suiteName, caseName, modelDocumentation);
+            constant.test = constant.initialize.getTest();
+            constant.folderTestSuite = new File(constant.folderLogs + constant.fileSystem.getSeparator() + suiteName);
+            constant.folderTestSuite.mkdirs();
+            folderTestCase = new File(constant.folderTestSuite + constant.fileSystem.getSeparator() + caseName);
+            folderTestCase.mkdirs();
+            folderDownloads = new File(folderTestCase + constant.fileSystem.getSeparator() + "files");
+            folderDownloads.mkdirs();
+            level = prop.getProperty("LOG_LEVEL").trim().toUpperCase();
+            constant.timeout = Integer.parseInt(prop.getProperty("WEB_TIMEOUT"));
+            Utils.setEncoding();
         } catch (Exception e) {
             e.printStackTrace();
             throw new Exception(e);
         }
     }
 
+    public static WebDriver setUpEnvironment(File folderDownloads, Properties prop,
+        String nameDriver, Map<String, WebDriver> contextsDriver) throws Exception {
+        driver = driverInit.driverSelector(folderDownloads, prop, nameDriver, contextsDriver);
+            handler = driver.getWindowHandle();
+        reflectiveClass = Utils.getReflective(Test_TestCaseModel.class.getCanonicalName());
+        return driver;
+    }
 }

@@ -37,8 +37,8 @@ import org.openqa.selenium.WebElement;
 
 import com.dedalow.Launcher;
 import com.dedalow.report.Report;
-import com.dedalow.SharedDependencies;
 import com.aventstack.extentreports.Status;
+import com.dedalow.utils.Constant;
 
 public class Utils {
 
@@ -61,25 +61,26 @@ public class Utils {
         try {
             prop = new Properties();
             prop.load(new FileInputStream("config.properties"));
+            checkConnection(prop);
             return prop;
         } catch (Exception e) {
             throw new Exception ("Can not find config.properties file");
         }
     }
 
-    public static boolean isElementEnabled(WebElement element) {
-        turnOffImplicitWaits();
-        boolean result = element.isEnabled();
-        turnOnImplicitWaits();
+    public static boolean isElementEnabled(WebElement x, WebDriver driver) {
+        turnOffImplicitWaits(driver);
+        boolean result = x.isEnabled();
+        turnOnImplicitWaits(driver);
         return result;
     }
 
-    private static void turnOffImplicitWaits() {
-        SharedDependencies.driver.manage().timeouts().implicitlyWait(0, TimeUnit.SECONDS);
+    private static void turnOffImplicitWaits(WebDriver driver) {
+        driver.manage().timeouts().implicitlyWait(0, TimeUnit.SECONDS);
     }
 
-    private static void turnOnImplicitWaits() {
-        SharedDependencies.driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+    private static void turnOnImplicitWaits(WebDriver driver) {
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
     }
 
     public static String generateJSONBody (String JSONPath) throws IOException {
@@ -126,14 +127,26 @@ public class Utils {
         return logger;
     }
 
+    public static Class getReflective(String classRoute) {
+        Class reflectiveClass = null;
+        try {
+            Object reflective = Class.forName(classRoute).newInstance();
+            reflectiveClass = reflective.getClass();
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+            Report.reportConsoleLogs(e.getMessage(), Level.SEVERE);
+        }
+        return reflectiveClass;
+    }
+
     /**
      * Reads and convert to lower cases the SCREENSHOT property of the config.properties file
      * @return String
-     * @throws Exception
+     * @throws Exception 
      */
     public String configScreenshot() throws Exception {
+        getConfigProperties();
         List<String> options = Arrays.asList("always", "only", "never");
-        String screenshot = SharedDependencies.prop.getProperty("SCREENSHOT");
+        String screenshot = prop.getProperty("SCREENSHOT");
         int spacePosition = screenshot.indexOf(" ");
         String result = screenshot.toLowerCase();
 
@@ -149,18 +162,19 @@ public class Utils {
 
     public static ArrayList<String> getTestCasesSelected() throws Exception {
     ArrayList<String> testCasesSelected = new ArrayList<String>();
-    if (!SharedDependencies.prop.getProperty("TESTSUITES").isEmpty() || !SharedDependencies.prop.getProperty("TESTCASES").isEmpty()) {
+    getConfigProperties();
+    if (!prop.getProperty("TESTSUITES").isEmpty() || !prop.getProperty("TESTCASES").isEmpty()) {
 
-        if (!SharedDependencies.prop.getProperty("TESTSUITES").isEmpty()) {
-            String[] testSuites = SharedDependencies.prop.getProperty("TESTSUITES").split(", | |,");
+        if (!prop.getProperty("TESTSUITES").isEmpty()) {
+            String[] testSuites = prop.getProperty("TESTSUITES").split(", | |,");
             for (String suite : testSuites) {
                 String nameSuite = suite.substring(0, 1).toLowerCase() + suite.substring(1);
                 testCasesSelected = getTestCases(nameSuite, testCasesSelected);
             }
         }
 
-        if(!SharedDependencies.prop.getProperty("TESTCASES").isEmpty()) {
-            String[] testCases = SharedDependencies.prop.getProperty("TESTCASES").split(", | |,");
+        if(!prop.getProperty("TESTCASES").isEmpty()) {
+            String[] testCases = prop.getProperty("TESTCASES").split(", | |,");
             for (String testCase : testCases) {
                 ArrayList<String> listTestCases = new ArrayList<String>();
                 boolean testCaseExist = false;
@@ -204,22 +218,55 @@ public class Utils {
         return testCases;
     }
 
-    public static Boolean checkDownload(String path,
+    public static void tearDown(Class reflectiveClass) {
+    try {
+        String finalResult = (String) reflectiveClass.getField("finalResult").get(reflectiveClass);
+        String suiteName = (String) reflectiveClass.getField("suiteName").get(reflectiveClass);
+        String caseName = (String) reflectiveClass.getField("caseName").get(reflectiveClass);
+        Constant constant = (Constant) reflectiveClass.getField("constant").get(reflectiveClass);
+        
+        constant.results.add(finalResult);
+        Report.addResults(suiteName, caseName, constant.results);
+        constant.initialize.flush();
+        for (Map.Entry<String, WebDriver> context : constant.contextsDriver.entrySet()) {
+            if (!context.getValue().toString().contains("Firefox")) {
+                context.getValue().close();
+            }
+            context.getValue().quit();
+        }
+        constant.contextsDriver.clear();
+    } catch (Exception e) {
+        Report.reportConsoleLogs(e.getMessage(), Level.SEVERE);
+    }
+}
+
+    public static void finalReports(Class reflectiveClass, boolean screenShot) {
+    try {
+        
+
+        Report.reportExcel(reflectiveClass);
+
+    } catch (Exception e) {
+        Report.reportConsoleLogs(e.getMessage(), Level.SEVERE);
+    }
+}
+
+    public static Boolean checkDownload(Class reflectiveClass, String path,
 		Integer directoryLength, File directoryPath) throws Exception {
 		long start = System.currentTimeMillis();
-		long end = start + Long.parseLong(SharedDependencies.prop.getProperty("WEB_TIMEOUT"))*1000;
+		long end = start + Long.parseLong(prop.getProperty("WEB_TIMEOUT"))*1000;
 
 		while (System.currentTimeMillis() <= end) {
 			if (directoryLength != directoryPath.listFiles().length) {
 				if (!isDownloadInProgress(directoryPath)) {
-					Report.reportLog("File downloaded in " + path, "INFO", 0, Status.PASS, false, "", "",
+					Report.reportLog(reflectiveClass, "File downloaded in " + path, "INFO", 0, Status.PASS, false, "", "",
 							null);
 					return true;
 				}
 			}
 		}
 
-		Report.reportLog("Reached timeOut. Specify more time in config.properties file", "INFO", 0,
+		Report.reportLog(reflectiveClass, "Reached timeOut. Specify more time in config.properties file", "INFO", 0,
 				Status.FAIL, false, "", "", null);
 
 		return false;
